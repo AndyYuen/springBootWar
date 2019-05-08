@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:camel="http://camel.apache.org/schema/spring"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <bean
+        class="org.apache.camel.component.servlet.CamelHttpTransportServlet" id="camelHttpTransportServlet"/>
+    <bean
+        class="org.springframework.boot.web.servlet.ServletRegistrationBean" id="servlet">
+        <property name="name" value="CamelServlet"/>
+        <property name="servlet" ref="camelHttpTransportServlet"/>
+        <property name="urlMappings" value="/myfuselab/*"/>
+    </bean>
+    <!-- Define a traditional camel context here -->
+    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+        <restConfiguration apiContextPath="api-docs" bindingMode="json"
+            component="servlet" contextPath="/myfuselab">
+            <apiProperty key="cors" value="true"/>
+            <apiProperty key="api.title" value="My First Camel API Lab"/>
+            <apiProperty key="api.version" value="1.0.0"/>
+        </restConfiguration>
+        <rest id="rest-c9815a65-efec-4d5c-9e01-45595b3b397b" path="/">
+            <get id="get-a67f3da3-bbf2-491f-a525-f56cd978667a" uri="customers">
+                <description>Retrieve all customer data</description>
+                <to uri="direct:getallcustomer"/>
+            </get>
+        </rest>
+        <rest id="rest-12aeaaa3-941d-48f9-8ec8-532b558286a7" path="/customer">
+            <get id="get-f5abd976-bfd9-4876-b8f4-e4b602b53b61" uri="{custid}">
+                <description>Retrieve specific customer data</description>
+                <to uri="direct:getcustomer"/>
+            </get>
+        </rest>
+        <rest id="rest-a05cab2b-7297-48fd-892a-5ea558dba840" path="/customer">
+            <post consumes="application/json" id="post-4fb379e2-8fa2-431b-8b12-35c10ab8b9d8">
+                <description>Add a customer</description>
+                <param dataType="string" description="Customer ID"
+                    name="id" type="path"/>
+                <param dataType="string" description="VIP Status"
+                    name="status" type="path"/>
+                <param dataType="int" description="Balance in account"
+                    name="balance" type="path"/>
+                <to uri="direct:addcustomer"/>
+            </post>
+        </rest>
+        <route id="allcustomer">
+            <from id="direct1" uri="direct:getallcustomer"/>
+            <to id="_to1" uri="sql:select * from customerdemo?dataSource=dataSource"/>
+            <log id="_log1" message="${body}"/>
+        </route>
+        <route id="specificcustomer">
+            <from id="direct2" uri="direct:getcustomer"/>
+            <to id="_to2" uri="sql:select * from customerdemo where customerID = :#custid?dataSource=dataSource"/>
+            <log id="_log2" message="${body}"/>
+        </route>
+        <route id="addnewcustomer">
+            <from id="direct3" uri="direct:addcustomer"/>
+            <setHeader headerName="customerId" id="_setHeader1">
+                <simple>customerId</simple>
+            </setHeader>
+            <setHeader headerName="vipStatus" id="_setHeader2">
+                <simple>vipStatus</simple>
+            </setHeader>
+            <setHeader headerName="balance" id="_setHeader3">
+                <simple>balance</simple>
+            </setHeader>
+            <to id="_to3" uri="sql:insert into customerdemo (customerID,vipStatus,balance) VALUES (:#customerId, :#vipStatus, :#balance)?dataSource=dataSource"/>
+            <log id="_log3" message="${body}"/>
+        </route>
+    </camelContext>
+</beans>
